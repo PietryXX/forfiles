@@ -135,8 +135,7 @@ function Invoke-ForFilesSim {
     }
 
     foreach ($f in $files) {
-        $cmd = $CommandTemplate
-        $cmd = $cmd -replace '@path', [Regex]::Escape($f.FullName) -replace '\\', '\'
+        # Sostituzione dei placeholder standard di forfiles, come farebbe forfiles.exe
         $cmd = $CommandTemplate `
             -replace '@path',  $f.FullName `
             -replace '@file',  $f.Name `
@@ -147,10 +146,16 @@ function Invoke-ForFilesSim {
             -replace '@fdate', $f.LastWriteTime.ToString('dd/MM/yyyy') `
             -replace '@ftime', $f.LastWriteTime.ToString('HH:mm:ss')
 
-        $txtLog.AppendText("Eseguo: cmd /c $cmd`r`n")
+        $txtLog.AppendText("Eseguo (PowerShell nativo): $cmd`r`n")
         try {
-            # Esegue il comando tramite cmd.exe, come fa forfiles realmente
-            Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmd" -NoNewWindow -Wait
+            # Esecuzione diretta in PowerShell, senza passare da cmd.exe:
+            # Invoke-Expression interpreta ed esegue la stringa di comando
+            # cosi' come e' stata composta, replicando il comportamento
+            # di sostituzione/esecuzione di forfiles ma internamente a PS.
+            $output = Invoke-Expression $cmd 2>&1
+            if ($output) {
+                $txtLog.AppendText(($output | Out-String))
+            }
             $txtLog.AppendText(" -> OK ($($f.Name))`r`n")
         }
         catch {
